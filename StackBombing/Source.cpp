@@ -8,14 +8,19 @@
 
 int main(int argc, char* argv[])
 {
-	WCHAR procName[] = L"TestProcess.exe";  
+	WCHAR procName[] = L"explorer.exe";  
 
 	DWORD pid = NameToPID((WCHAR*)procName);
 	DWORD* threads = ListProcessThreads(pid);
-	DWORD tid = threads[0];
+
+	for (int i = 0; i < 20; i++)
+	{
+		inject(pid, threads[i]);
+		Sleep(300);
+	}
+	
 	free(threads);
 
-	inject(pid, tid);
-	//LOLLLLLLA
+	system("pause");
 	return 0;
 }

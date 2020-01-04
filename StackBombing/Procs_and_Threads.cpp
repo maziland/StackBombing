@@ -7,7 +7,7 @@ DWORD* ListProcessThreads(DWORD dwOwnerPID)
 	HANDLE hThreadSnap = INVALID_HANDLE_VALUE;
 	THREADENTRY32 te32;
 	DWORD i = 0;
-	DWORD* threads = (DWORD*)malloc(25*sizeof(DWORD));
+	DWORD* threads = (DWORD*)malloc(1000*sizeof(DWORD));
 	ZeroMemory(&te32, sizeof(THREADENTRY32));
 
 	// Take a snapshot of all running threads  
