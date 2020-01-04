@@ -150,8 +150,9 @@ DWORD64 GadgetFinder(const void* const needle, const size_t needle_len)
 
 }
 
-PINJECTRA_PACKET* eval(TStrDWORD64Map& runtime_parameters)
+PINJECTRA_PACKET* BuildPayload(TStrDWORD64Map& runtime_parameters)
 {
+	LoadLibrary(L"gdi32.dll");
 	PINJECTRA_PACKET* output;
 	DWORD64 rop_pos = 0;
 	DWORD64* ROP_chain;

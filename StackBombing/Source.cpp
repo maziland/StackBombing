@@ -8,7 +8,6 @@
 
 int main(int argc, char* argv[])
 {
-	LoadLibrary(L"gdi32.dll");
 	WCHAR procName[] = L"TestProcess.exe";  
 
 	DWORD pid = NameToPID((WCHAR*)procName);

@@ -16,6 +16,6 @@
 
 #pragma once
 
-int eval_and_write(TARGET_PROCESS* target, TStrDWORD64Map* params);
+int WritePayload(TARGET_PROCESS* target, TStrDWORD64Map* params);
 
 #endif // !_NQAT_WITH_MEMSET_H

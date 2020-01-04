@@ -23,7 +23,7 @@ NTSTATUS(NTAPI* NtQueueApcThread)(
 	_In_ __int64 ApcReserved OPTIONAL
 	);
 
-int eval_and_write(TARGET_PROCESS* target, TStrDWORD64Map* params)
+int WritePayload(TARGET_PROCESS* target, TStrDWORD64Map* params)
 {
 	HMODULE ntdll = GetModuleHandleA("ntdll");
 	if (!ntdll)
@@ -32,7 +32,7 @@ int eval_and_write(TARGET_PROCESS* target, TStrDWORD64Map* params)
 	PINJECTRA_PACKET* payload_output;
 
 	// Evaluate Payload
-	payload_output = eval(*params);
+	payload_output = BuildPayload(*params);
 	if (payload_output == NULL)
 		return NULL;
 

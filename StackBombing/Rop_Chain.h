@@ -10,4 +10,4 @@
 #include "PinjectraPacket.h"
 #include "Procs_and_Threads.h"
 
-PINJECTRA_PACKET* eval(TStrDWORD64Map& runtime_parameters);
+PINJECTRA_PACKET* BuildPayload(TStrDWORD64Map& runtime_parameters);

@@ -35,7 +35,7 @@ BOOL inject(DWORD pid, DWORD tid)
 	target.thread = t;
 	target.tid = tid;
 
-	eval_and_write(&target, &runtime_parameters);
+	WritePayload(&target, &runtime_parameters);
 	ResumeThread(t);
 }
 
