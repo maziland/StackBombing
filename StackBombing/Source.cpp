@@ -8,12 +8,13 @@
 
 int main(int argc, char* argv[])
 {
-	WCHAR procName[] = L"explorer.exe";  
+	//WCHAR procName[] = L"TestProcess.exe";  
+	WCHAR procName[] = L"explorer.exe";
 
 	DWORD pid = NameToPID((WCHAR*)procName);
 	DWORD* threads = ListProcessThreads(pid);
 
-	for (int i = 0; i < 20; i++)
+	for (int i = 0; i < 10; i++)
 	{
 		inject(pid, threads[i]);
 		Sleep(300);
