@@ -2,6 +2,53 @@
 #include<windows.h>
 #include<TlHelp32.h>
 
+
+typedef void (WINAPI* RtlGetVersion_FUNC) (OSVERSIONINFOEXW*);
+
+BOOL GetVersionOs(OSVERSIONINFOEX* os)
+{
+	HMODULE hMod;
+	RtlGetVersion_FUNC func;
+#ifdef UNICODE
+	OSVERSIONINFOEXW* osw = os;
+#else
+	OSVERSIONINFOEXW o;
+	OSVERSIONINFOEXW* osw = &o;
+#endif
+
+	hMod = LoadLibrary(L"ntdll");
+	if (hMod)
+	{
+		func = (RtlGetVersion_FUNC)GetProcAddress(hMod, "RtlGetVersion");
+		if (func == 0)
+		{
+			FreeLibrary(hMod);
+			return FALSE;
+		}
+		ZeroMemory(osw, sizeof(*osw));
+		osw->dwOSVersionInfoSize = sizeof(*osw);
+		func(osw);
+#ifndef UNICODE
+		os->dwBuildNumber = osw->dwBuildNumber;
+		os->dwMajorVersion = osw->dwMajorVersion;
+		os->dwMinorVersion = osw->dwMinorVersion;
+		os->dwPlatformId = osw->dwPlatformId;
+		os->dwOSVersionInfoSize = sizeof(*os);
+		DWORD sz = sizeof(os->szCSDVersion);
+		WCHAR* src = osw->szCSDVersion;
+		unsigned char* dtc = (unsigned char*)os->szCSDVersion;
+		while (*src)
+			*dtc++ = (unsigned char)*src++;
+		*dtc = '\ 0';
+#endif
+
+	}
+	else
+		return FALSE;
+	FreeLibrary(hMod);
+	return TRUE;
+}
+
 DWORD* ListProcessThreads(DWORD dwOwnerPID)
 {
 	HANDLE hThreadSnap = INVALID_HANDLE_VALUE;
@@ -58,48 +105,3 @@ DWORD NameToPID(WCHAR *pProcessName)
 }
 
 
-typedef void (WINAPI* RtlGetVersion_FUNC) (OSVERSIONINFOEXW*);
-
-BOOL GetVersionOs(OSVERSIONINFOEX* os)
-{
-	HMODULE hMod;
-	RtlGetVersion_FUNC func;
-#ifdef UNICODE
-	OSVERSIONINFOEXW* osw = os;
-#else
-	OSVERSIONINFOEXW o;
-	OSVERSIONINFOEXW* osw = &o;
-#endif
-
-	hMod = LoadLibrary(L"ntdll");
-	if (hMod)
-	{
-		func = (RtlGetVersion_FUNC)GetProcAddress(hMod, "RtlGetVersion");
-		if (func == 0)
-		{
-			FreeLibrary(hMod);
-			return FALSE;
-		}
-		ZeroMemory(osw, sizeof(*osw));
-		osw->dwOSVersionInfoSize = sizeof(*osw);
-		func(osw);
-#ifndef UNICODE
-		os->dwBuildNumber = osw->dwBuildNumber;
-		os->dwMajorVersion = osw->dwMajorVersion;
-		os->dwMinorVersion = osw->dwMinorVersion;
-		os->dwPlatformId = osw->dwPlatformId;
-		os->dwOSVersionInfoSize = sizeof(*os);
-		DWORD sz = sizeof(os->szCSDVersion);
-		WCHAR* src = osw->szCSDVersion;
-		unsigned char* dtc = (unsigned char*)os->szCSDVersion;
-		while (*src)
-			*dtc++ = (unsigned char)*src++;
-		*dtc = '\ 0';
-#endif
-
-	}
-	else
-		return FALSE;
-	FreeLibrary(hMod);
-	return TRUE;
-}

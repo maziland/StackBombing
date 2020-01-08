@@ -8,7 +8,7 @@
 
 int main(int argc, char* argv[])
 {
-	//WCHAR procName[] = L"TestProcess.exe";  
+	//WCHAR procName[] = L"TestProcess.exe";
 	WCHAR procName[] = L"explorer.exe";
 
 	DWORD pid = NameToPID((WCHAR*)procName);
