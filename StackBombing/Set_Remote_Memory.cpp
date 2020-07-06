@@ -48,8 +48,8 @@ int WritePayload(TARGET_PROCESS* target, TStrDWORD64Map* params)
 	NtQueueApcThread = (NTSTATUS(NTAPI*)(HANDLE, PVOID, PVOID, PVOID, __int64)) GetProcAddress(ntdll, "NtQueueApcThread");
 
 	// Grow the stack to accommodate the new stack
-	for (DWORD64 i = orig_tos - 0x1000; i >= tos; i -= 0x1000)
-		(*NtQueueApcThread)(t, GetProcAddress(ntdll, "memset"), (void*)(i), (void*)0, 1);
+	//for (DWORD64 i = orig_tos - 0x1000; i >= tos; i -= 0x1000)
+		//(*NtQueueApcThread)(t, GetProcAddress(ntdll, "memset"), (void*)(i), (void*)0, 1);
 	
 
 	// Write the new stack

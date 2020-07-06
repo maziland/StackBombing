@@ -284,6 +284,11 @@ PINJECTRA_PACKET* BuildPayload(TStrDWORD64Map& runtime_parameters)
 	ROP_chain[saved_return_address] = (*run_params)["tos"] + sizeof(DWORD64) * rop_pos;
 	ROP_chain[rop_pos++] = DONT_CARE;
 
+	for (int count=0; count < rop_pos; count++)
+	{
+		//Edit: Use printf("val = 0x%" PRIx64 "\n", val);
+		printf("%d ---> 0x%llx\n", count, ROP_chain[count]);
+	}
 	// STACK FIX
 
 	// Update Runtime Parameters with ROP-specific Parameters

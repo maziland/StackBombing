@@ -9,7 +9,8 @@
 int main(int argc, char* argv[])
 {
 	//WCHAR procName[] = L"TestProcess.exe";
-	WCHAR procName[] = L"explorer.exe";
+	WinExec("C:\\Windows\\System32\\notepad.exe", SW_SHOW);
+	WCHAR procName[] = L"notepad.exe";
 
 	DWORD pid = NameToPID((WCHAR*)procName);
 	DWORD* threads = ListProcessThreads(pid);
